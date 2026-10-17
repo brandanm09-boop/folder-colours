@@ -5,7 +5,7 @@ Give each VS Code folder its own colours, so you always know which project windo
 ## Use it
 
 ```
-git clone <this repo>
+git clone https://github.com/brandanm09-boop/folder-colours.git
 python3 folder-colours/colours.py ~/path/to/your/project
 ```
 
