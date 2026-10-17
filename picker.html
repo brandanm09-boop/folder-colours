@@ -1,0 +1,363 @@
+<title>Folder Colours</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: calm dark stage so the colours read true. Folder row on top. Left: the looks grid, then one row per part. Right: the live window, pinned while you scroll. Deliberately dark only. */
+  :root {
+    --bg: #111215; --panel: #18191d; --raised: #202226; --line: #2a2c31; --fg: #ededf0; --muted: #8b9099; --ring: #ffffff; --good: #3ecf8e; --bad: #ff6b6b;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--sans); -webkit-font-smoothing: antialiased;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; }
+  button, select { font-family: var(--sans); }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  .app { max-width: 1200px; margin: 0 auto; display: grid; gap: 22px; }
+
+  .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+  .sub { margin: 4px 0 0; color: var(--muted); max-width: 60ch; }
+  .status { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; min-height: 20px; }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .status.ok i { background: var(--good); } .status.err { color: var(--bad); } .status.err i { background: var(--bad); }
+
+  .folders { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fold { display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px 9px 10px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); color: var(--fg); font-size: 15px; font-weight: 600; cursor: pointer; }
+  .fold[aria-selected="true"] { border-color: var(--ring); box-shadow: inset 0 0 0 1px var(--ring); }
+  .fsw { width: 26px; height: 19px; border-radius: 4px; overflow: hidden; display: grid; grid-template-rows: 5px 1fr; border: 1px solid #ffffff26; flex: none; }
+  .fsw.none { border-style: dashed; background: transparent; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 470px; gap: 32px; align-items: start; }
+  .grid > * { min-width: 0; }
+  h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .looks { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 16px 14px; }
+  .look { background: none; border: 0; padding: 0; color: var(--fg); cursor: pointer; display: grid; gap: 7px; text-align: left; font-size: 13px; font-weight: 500; }
+  .mw { aspect-ratio: 16 / 10; border-radius: 9px; overflow: hidden; display: grid; grid-template-rows: 13% 1fr 9%; border: 1px solid #ffffff1c; transition: transform .12s ease; }
+  .look:hover .mw { transform: translateY(-2px); }
+  .look[aria-pressed="true"] .mw { outline: 2px solid var(--ring); outline-offset: 3px; }
+  .mw .mid { display: grid; grid-template-columns: 9% 27% 1fr; }
+  .mw .ed { padding: 11% 10% 0; display: grid; gap: 8%; align-content: start; }
+  .mw .ed span { height: 5px; border-radius: 3px; display: block; }
+  .mw .ed b { display: block; height: 13px; border-radius: 3px; border: 1.5px solid; margin-top: 6%; }
+
+  .parts { margin-top: 30px; }
+  .part { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+  .part:last-child { border-bottom: 1px solid var(--line); }
+  .plabel { font-weight: 600; font-size: 14px; }
+  .dots { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+  .dot { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #ffffff30; padding: 0; cursor: pointer; flex: none; }
+  .dot[aria-pressed="true"], .any[data-on="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring); }
+  .pill { height: 26px; padding: 0 11px; border-radius: 13px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); font-size: 12px; font-weight: 500; cursor: pointer; }
+  .pill[aria-pressed="true"] { border-color: var(--ring); box-shadow: inset 0 0 0 1px var(--ring); }
+  .any { width: 26px; height: 26px; border-radius: 50%; position: relative; overflow: hidden; flex: none; cursor: pointer; border: 1px solid #ffffff30;
+    background: conic-gradient(#ff5b5b, #ffd35b, #5bff8c, #5bd8ff, #7a5bff, #ff5bd8, #ff5b5b); }
+  .any input { position: absolute; inset: -8px; width: calc(100% + 16px); height: calc(100% + 16px); opacity: 0; cursor: pointer; border: 0; padding: 0; }
+  select { height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); font-size: 14px; padding: 0 10px; max-width: 100%; }
+  .step { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .step button { width: 34px; height: 32px; background: var(--raised); border: 0; color: var(--fg); font-size: 17px; cursor: pointer; }
+  .step output { min-width: 50px; text-align: center; font: 13px var(--mono); }
+
+  .right { position: sticky; top: 20px; display: grid; gap: 14px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { height: 36px; padding: 0 15px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: 14px; font-weight: 500; cursor: pointer; }
+  .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .note { margin: 0; font-size: 13px; color: var(--muted); }
+  .empty { aspect-ratio: 470 / 382; border: 1.5px dashed var(--line); border-radius: 12px; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 24px; }
+
+  /* the live VS Code window */
+  .win { border-radius: 11px; overflow: hidden; border: 1px solid #00000080; box-shadow: 0 16px 40px #00000066; font-size: 12px; line-height: 1.35; }
+  .tbar { height: 30px; display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; padding: 0 10px; }
+  .lights { display: flex; gap: 6px; } .lights i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .search { justify-self: center; width: min(260px, 100%); border-radius: 5px; padding: 3px 10px; font-size: 11px; text-align: center; background: #8080801f; border: 1px solid #8080802e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wbody { display: grid; grid-template-columns: 34px 128px minmax(0, 1fr); height: 330px; }
+  .act { display: grid; align-content: start; justify-items: center; gap: 14px; padding-top: 12px; position: relative; }
+  .act i { width: 15px; height: 15px; border-radius: 3px; display: block; border: 2px solid currentColor; opacity: .5; }
+  .act i.on { opacity: 1; background: currentColor; }
+  .act .bdg { position: absolute; top: 102px; left: 19px; width: 13px; height: 13px; border-radius: 50%; font-size: 8px; display: grid; place-items: center; font-weight: 700; }
+  .side { padding: 10px; display: grid; align-content: start; gap: 7px; font-size: 11px; overflow: hidden; }
+  .side .t { font-weight: 600; font-size: 12px; }
+  .side .h { font-size: 9.5px; font-weight: 600; letter-spacing: .06em; opacity: .85; margin-top: 4px; }
+  .side .kv { display: flex; justify-content: space-between; }
+  .side .bar { height: 4px; border-radius: 2px; overflow: hidden; background: #8080803a; } .side .bar span { display: block; height: 100%; }
+  .side .sel { border-radius: 4px; padding: 4px 6px; margin: 0 -6px; }
+  .ed2 { display: grid; grid-template-rows: 28px minmax(0, 1fr); min-width: 0; }
+  .tabs { display: flex; align-items: stretch; }
+  .tab { padding: 0 12px; display: flex; align-items: center; font-size: 11px; white-space: nowrap; }
+  .area { padding: 14px; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-width: 0; overflow: hidden; }
+  .msg { border-radius: 7px; padding: 8px 10px; }
+  .reply { display: grid; gap: 4px; align-content: start; }
+  .reply ul { margin: 2px 0 0; padding-left: 16px; display: grid; gap: 2px; }
+  .code { font-family: var(--mono); font-size: 10.5px; border-radius: 5px; padding: 6px 8px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .input { border-radius: 8px; padding: 9px 10px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+  .send { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .sbar { height: 22px; display: flex; align-items: center; font-size: 10.5px; gap: 12px; padding-right: 10px; }
+  .sbar .rem { height: 100%; padding: 0 9px; display: flex; align-items: center; }
+  .sbar .sp { flex: 1; }
+
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } .right { position: static; order: -1; } }
+  @media (max-width: 520px) { .wbody { grid-template-columns: 30px 100px minmax(0, 1fr); height: 300px; } .part { grid-template-columns: 1fr; gap: 8px; } }
+  @media (prefers-reduced-motion: reduce) { .mw { transition: none; } }
+</style>
+
+<main class="app">
+  <header class="top">
+    <div>
+      <h1>Folder colours</h1>
+      <p class="sub" id="sub">Click a look. The VS Code window for that folder changes as you click.</p>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"><i></i><span></span></div>
+  </header>
+  <nav class="folders" id="folders" role="tablist" aria-label="Folder"></nav>
+  <div class="grid">
+    <section>
+      <h2>Pick a look</h2>
+      <div class="looks" id="looks"></div>
+      <div class="parts" id="parts"></div>
+    </section>
+    <aside class="right">
+      <div id="preview"></div>
+      <div class="btns">
+        <button type="button" class="btn primary" id="copy" hidden>Copy settings</button>
+        <button type="button" class="btn" id="undo">Undo</button>
+        <button type="button" class="btn" id="clear">Remove colours</button>
+      </div>
+      <p class="note" id="note"></p>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Looks and swatches. A look sets border, background, text and highlight in one click.
+  var LOOKS = [
+    ["Navy","#001126","#002451","auto","#bbdaff"], ["Graphite","#18191c","#1f2023","auto","#ffd27a"],
+    ["Pitch black","#000000","#0a0a0a","auto","#ffffff"], ["Plum","#140026","#2c0051","auto","#dfbbff"],
+    ["Wine","#260006","#51000d","auto","#ffbbc7"], ["Forest","#0b1f14","#0f2a1c","auto","#5ee08f"],
+    ["Lagoon","#021c1f","#06302f","auto","#4fd1c5"], ["Coffee","#2a1a10","#3b2414","#f1e6d2","#ffc79c"],
+    ["Ember","#c2410c","#1b1c1f","auto","#ff9f4a"], ["Neon purple","#5b2ca8","#15121f","auto","#b78cff"],
+    ["Cherry","#b3261e","#170f10","auto","#ff6b6b"], ["Paper","#e9dfcc","#f6f1e7","auto","#c2410c"]
+  ].map(function (l) { return { name: l[0], border: l[1], bg: l[2], text: l[3], hl: l[4] }; });
+  var SWATCHES = {
+    border: [["Navy","#001126"],["Black","#000000"],["Charcoal","#1b1c1f"],["Ocean","#0b4f8a"],["Plum","#140026"],["Purple","#5b2ca8"],["Violet","#7c4dff"],["Wine","#260006"],["Blood red","#931010"],["Red","#b3261e"],["Orange","#c2410c"],["Forest","#0b1f14"],["Green","#1f7a3f"],["Teal","#0f5c5c"],["Sand","#e9dfcc"]],
+    bg: [["Navy","#002451"],["Black","#0a0a0a"],["Charcoal","#1f2023"],["Plum","#2c0051"],["Ink","#15121f"],["Wine","#51000d"],["Dark cherry","#170f10"],["Forest","#0f2a1c"],["Lagoon","#06302f"],["Coffee","#3b2414"],["Paper","#f6f1e7"],["White","#ffffff"]],
+    text: [["White","#ffffff"],["Light grey","#cccccc"],["Cream","#f1e6d2"],["Yellow","#ffe08a"],["Mint","#9ff0c2"],["Sky","#9cd0ff"],["Lilac","#d4b8ff"],["Pink","#ffb3d1"],["Near black","#1f1f1f"]],
+    lines: [["Grey","#5c6370"],["Dark","#2a2a2a"],["Black","#000000"],["White","#ffffff"],["Gold","#ffd27a"],["Purple","#8b5cf6"],["Pink","#e93d82"],["Red","#e5484d"],["Green","#30a46c"],["Blue","#3e63dd"]],
+    hl: [["Ice blue","#bbdaff"],["Gold","#ffd27a"],["Orange","#ff9f4a"],["Red","#ff6b6b"],["Rose","#ffbbc7"],["Pink","#ff7ac6"],["Lilac","#dfbbff"],["Purple","#9d6bff"],["Blue","#3884ff"],["Green","#5ee08f"],["Teal","#4fd1c5"],["White","#ffffff"]]
+  };
+  var PARTS = [["border","Border"],["bg","Background"],["text","Text"],["lines","Lines"],["hl","Highlight"]];
+  var FONT_CANDIDATES = ["Inter","Geist","Figtree","Poppins","PP Neue Montreal","Red Hat Display","Roboto","Avenir Next","Helvetica Neue","Futura","Gill Sans","Optima","Georgia","Charter","Palatino","Iowan Old Style","Menlo","Monaco","JetBrains Mono","Fira Code","Cascadia Code","American Typewriter"];
+  var DEFAULT_SIZE = 13;
+
+  // ---- Colour maths: one picked colour per part, the shades around it are worked out here.
+  var DARK_TEXT = "#1f1f1f";
+  function clamp(x) { return Math.max(0, Math.min(1, x)); }
+  function rgb(c) { return [parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255]; }
+  function hexc(r, g, b, a) { return "#" + [r,g,b].map(function (x) { var v = Math.floor(clamp(x)*255 + 0.5); return (v < 16 ? "0" : "") + v.toString(16); }).join("") + (a || ""); }
+  function hls(c) { var v = rgb(c), r = v[0], g = v[1], b = v[2], mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2;
+    if (mx === mn) return [0, l, 0];
+    var d = mx-mn, s = l <= 0.5 ? d/(mx+mn) : d/(2-mx-mn), rc = (mx-r)/d, gc = (mx-g)/d, bc = (mx-b)/d, h;
+    if (r === mx) h = bc-gc; else if (g === mx) h = 2+rc-bc; else h = 4+gc-rc;
+    return [((h/6)%1+1)%1, l, s]; }
+  function vv(m1, m2, h) { h = ((h%1)+1)%1; if (h < 1/6) return m1+(m2-m1)*h*6; if (h < 0.5) return m2; if (h < 2/3) return m1+(m2-m1)*(2/3-h)*6; return m1; }
+  function fromHls(h, l, s, a) { l = clamp(l); s = clamp(s); if (s === 0) return hexc(l, l, l, a);
+    var m2 = l <= 0.5 ? l*(1+s) : l+s-l*s, m1 = 2*l-m2; return hexc(vv(m1,m2,h+1/3), vv(m1,m2,h), vv(m1,m2,h-1/3), a); }
+  function isLight(c) { var v = rgb(c); return 0.2126*v[0] + 0.7152*v[1] + 0.0722*v[2] > 0.5; }
+  function sink(c, d) { var x = hls(c); if (isLight(c)) return fromHls(x[0], x[1]-d*0.6, x[2]); return fromHls(x[0], x[1]-d >= 0.015 ? x[1]-d : x[1]+d*0.7, x[2]); }
+  function lift(c, d, sat) { var x = hls(c); return fromHls(x[0], isLight(c) ? x[1]-d : x[1]+d, x[2]*(sat === undefined ? 1 : sat)); }
+  function dim(c) { var x = hls(c); return fromHls(x[0], x[1]*1.1+0.02, x[2]*0.5); }
+  function on(c) { return isLight(c) ? DARK_TEXT : "#ffffff"; }
+  function each(keys, val, o) { keys.forEach(function (k) { o[k] = val; }); }
+
+  function build(p) {
+    var o = {}, b = p.border, bg = p.bg, hl = p.hl, light = isLight(bg);
+    each(["titleBar.activeBackground","activityBar.background","statusBar.background","statusBar.noFolderBackground","statusBar.debuggingBackground"], b, o);
+    each(["titleBar.inactiveBackground","statusBar.inactiveBackground"], dim(b), o);
+    o["statusBarItem.remoteBackground"] = lift(b, 0.12);
+    var bt = isLight(b) ? DARK_TEXT : "#ffffff";
+    each(["titleBar.activeForeground","statusBar.foreground","activityBar.foreground","statusBarItem.remoteForeground"], bt, o);
+    o["titleBar.inactiveForeground"] = bt + "99"; o["activityBar.inactiveForeground"] = bt + "80";
+    o["editor.background"] = bg;
+    each(["sideBar.background","editorWidget.background","editorHoverWidget.background","peekViewResult.background","tab.inactiveBackground","debugToolBar.background"], sink(bg, 0.034), o);
+    each(["editorGroupHeader.tabsBackground","input.background","dropdown.background"], sink(bg, 0.059), o);
+    o["editor.lineHighlightBackground"] = lift(bg, 0.057);
+    o["editor.selectionBackground"] = o["minimap.selectionHighlight"] = lift(bg, 0.12);
+    o["editorGroup.dropBackground"] = lift(bg, 0.15) + "aa";
+    each(["agentsPanel.border","agentsChatInput.border","agentsNewSessionButton.border","editorWhitespace.foreground","editorGroup.border","panelSection.border","panelSectionHeader.border","sideBarSectionHeader.border"], p.lines && p.lines !== "auto" ? p.lines : lift(bg, 0.21, 0.35), o);
+    var lists = light ? ["#00000026","#0000001a","#00000012","#00000026","#00000033"] : ["#ffffff60","#ffffff40","#ffffff30","#ffffff60","#ffffff44"];
+    ["list.activeSelectionBackground","list.inactiveSelectionBackground","list.hoverBackground","quickInputList.focusBackground","editorHoverWidget.border"].forEach(function (k, i) { o[k] = lists[i]; });
+    var main = p.text !== "auto" ? p.text : (light ? DARK_TEXT : "#ffffff");
+    var ui = p.text !== "auto" ? p.text : (light ? "#3b3b3b" : "#cccccc");
+    each(["editor.foreground","editorCursor.foreground","tab.activeForeground","input.foreground","editorHoverWidget.foreground","editorWidget.foreground"], main, o);
+    each(["foreground","sideBar.foreground","sideBarTitle.foreground","sideBarSectionHeader.foreground","panelTitle.activeForeground"], ui, o);
+    o["tab.inactiveForeground"] = ui + "99"; o["input.placeholderForeground"] = main + "80"; o["descriptionForeground"] = ui + "b3";
+    each(["focusBorder","agentsChatInput.focusBorder","list.highlightForeground","pickerGroup.foreground","ports.iconRunningProcessForeground","textLink.foreground","textLink.activeForeground","activityBarBadge.background","button.background"], hl, o);
+    o["progressBar.background"] = hl + "cc"; o["badge.background"] = hl + "cc"; o["tab.lastPinnedBorder"] = hl + "80";
+    each(["badge.foreground","activityBarBadge.foreground","button.foreground"], on(hl), o);
+    o["button.hoverBackground"] = lift(hl, 0.08);
+    return o;
+  }
+  function fontCss(f) { return f === "default" ? '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' : "'" + f + "', -apple-system, sans-serif"; }
+  function settingsFor(p) {
+    var s = { "workbench.colorCustomizations": build(p) };
+    if (p.font !== "default") s["chat.fontFamily"] = "'" + p.font + "', -apple-system, sans-serif";
+    if (p.size !== DEFAULT_SIZE) s["chat.fontSize"] = p.size;
+    return s;
+  }
+
+  // ---- State
+  var live = false, folders = [], cur = 0, fonts = ["default"];
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
+  function lookOf(p) { if (!p) return null; for (var i = 0; i < LOOKS.length; i++) { var L = LOOKS[i]; if (p.border === L.border && p.bg === L.bg && p.text === L.text && p.hl === L.hl && (p.lines || "auto") === "auto") return L.name; } return null; }
+  function hasFont(name) {
+    try { var c = document.createElement("canvas").getContext("2d"), t = "mmmmmmmmmlli1WQ@#&"; 
+      return ["monospace","serif","sans-serif"].some(function (g) { c.font = "72px " + g; var w = c.measureText(t).width; c.font = "72px '" + name + "', " + g; return c.measureText(t).width !== w; });
+    } catch (e) { return false; }
+  }
+
+  // ---- Drawing
+  function mini(p) {
+    var o = build(p);
+    return '<div class="mw" aria-hidden="true"><div style="background:' + o["titleBar.activeBackground"] + '"></div>' +
+      '<div class="mid"><div style="background:' + o["activityBar.background"] + '"></div><div style="background:' + o["sideBar.background"] + '"></div>' +
+      '<div class="ed" style="background:' + o["editor.background"] + '"><span style="background:' + o["editor.foreground"] + ';width:78%;opacity:.9"></span><span style="background:' + o["foreground"] + ';width:52%;opacity:.7"></span><b style="border-color:' + o["focusBorder"] + ';background:' + o["input.background"] + '"></b></div></div>' +
+      '<div style="background:' + o["statusBar.background"] + '"></div></div>';
+  }
+  function win(p, name) {
+    var o = build(p), chat = "font-family:" + esc(fontCss(p.font)) + ";font-size:" + (12 * p.size / DEFAULT_SIZE).toFixed(1) + "px";
+    return '<div class="win" role="img" aria-label="Preview of the ' + esc(name) + ' window">' +
+      '<div class="tbar" style="background:' + o["titleBar.activeBackground"] + ';color:' + o["titleBar.activeForeground"] + '"><div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><div class="search">' + esc(name) + '</div><div></div></div>' +
+      '<div class="wbody">' +
+        '<div class="act" style="background:' + o["activityBar.background"] + ';color:' + o["activityBar.foreground"] + '"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><span class="bdg" style="background:' + o["activityBarBadge.background"] + ';color:' + o["activityBarBadge.foreground"] + '">1</span></div>' +
+        '<div class="side" style="background:' + o["sideBar.background"] + ';color:' + o["foreground"] + ';border-right:1px solid ' + o["editorGroup.border"] + '">' +
+          '<div class="t">Claude Code</div><div class="h">USAGE</div>' +
+          '<div class="kv"><span>Session</span><span>12%</span></div><div class="bar"><span style="width:12%;background:' + o["progressBar.background"] + '"></span></div>' +
+          '<div class="kv"><span>Weekly</span><span>74%</span></div><div class="bar"><span style="width:74%;background:' + o["progressBar.background"] + '"></span></div>' +
+          '<div class="h">SESSIONS</div><div class="sel" style="background:' + o["list.inactiveSelectionBackground"] + '">Folder colours</div><div>Weekly plan</div><div style="opacity:.7">Client notes</div>' +
+        '</div>' +
+        '<div class="ed2">' +
+          '<div class="tabs" style="background:' + o["editorGroupHeader.tabsBackground"] + ';border-bottom:1px solid ' + o["editorGroup.border"] + '"><div class="tab" style="background:' + o["editor.background"] + ';color:' + o["tab.activeForeground"] + '">Claude Code</div><div class="tab" style="background:' + o["tab.inactiveBackground"] + ';color:' + o["tab.inactiveForeground"] + '">README.md</div></div>' +
+          '<div class="area" style="background:' + o["editor.background"] + ';color:' + o["editor.foreground"] + ';' + chat + '">' +
+            '<div class="msg" style="background:' + o["input.background"] + ';border:1px solid ' + o["agentsPanel.border"] + '">give this folder its own colours</div>' +
+            '<div class="reply"><div>Done. This window now has its own look:</div><ul><li>The border is the top bar, left strip and bottom bar.</li><li>The background is where you read and type.</li><li>Highlights mark the chat box, badges and links.</li></ul>' +
+              '<div class="code" style="background:' + o["editorWidget.background"] + '">saved <span style="color:' + o["textLink.foreground"] + '">.vscode/settings.json</span></div></div>' +
+            '<div class="input" style="background:' + o["input.background"] + ';border:1.5px solid ' + o["focusBorder"] + ';color:' + o["foreground"] + '"><span style="opacity:.7">Queue another message...</span><span class="send" style="background:' + o["button.background"] + ';color:' + o["button.foreground"] + '">&uarr;</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="sbar" style="background:' + o["statusBar.background"] + ';color:' + o["statusBar.foreground"] + '"><span class="rem" style="background:' + o["statusBarItem.remoteBackground"] + ';color:' + o["statusBarItem.remoteForeground"] + '">&gt;&lt;</span><span>0 errors</span><span class="sp"></span><span>Claude Code</span></div>' +
+    '</div>';
+  }
+
+  function renderFolders() {
+    var el = $("folders"); el.hidden = folders.length < 2;
+    el.innerHTML = folders.map(function (f, i) {
+      var sw = f.picks ? '<span class="fsw" style="background:' + f.picks.bg + '"><span style="background:' + f.picks.border + '"></span></span>' : '<span class="fsw none"></span>';
+      return '<button type="button" class="fold" role="tab" aria-selected="' + (i === cur) + '" data-folder="' + i + '">' + sw + esc(f.name) + '</button>';
+    }).join("");
+  }
+  function renderLooks() {
+    var now = lookOf(folders[cur].picks);
+    $("looks").innerHTML = LOOKS.map(function (L, i) {
+      return '<button type="button" class="look" data-look="' + i + '" aria-pressed="' + (now === L.name) + '">' + mini(Object.assign({ font: "default", size: DEFAULT_SIZE }, L)) + '<span>' + L.name + '</span></button>';
+    }).join("");
+  }
+  function renderParts() {
+    var h = PARTS.map(function (pt) {
+      var k = pt[0], dots = (k === "text" || k === "lines" ? '<button type="button" class="pill" data-part="' + k + '" data-val="auto">Auto</button>' : "") +
+        SWATCHES[k].map(function (s) { return '<button type="button" class="dot" data-part="' + k + '" data-val="' + s[1] + '" title="' + s[0] + '" aria-label="' + pt[1] + ': ' + s[0] + '" style="background:' + s[1] + '"></button>'; }).join("") +
+        '<label class="any" data-any="' + k + '" title="Any colour"><input type="color" data-color="' + k + '" aria-label="' + pt[1] + ': any colour"></label>';
+      return '<div class="part"><div class="plabel">' + pt[1] + '</div><div class="dots">' + dots + '</div></div>';
+    }).join("");
+    h += '<div class="part"><div class="plabel">Chat font</div><div class="dots"><select id="font" aria-label="Chat font">' +
+      fonts.map(function (f) { return '<option value="' + esc(f) + '">' + (f === "default" ? "VS Code default" : esc(f)) + '</option>'; }).join("") +
+      '</select><div class="step"><button type="button" data-step="-1" aria-label="Smaller text">&minus;</button><output id="size"></output><button type="button" data-step="1" aria-label="Bigger text">+</button></div></div></div>';
+    $("parts").innerHTML = h;
+  }
+  function syncParts() {
+    var p = folders[cur].picks;
+    document.querySelectorAll("[data-part]").forEach(function (el) { el.setAttribute("aria-pressed", String(!!p && p[el.getAttribute("data-part")] === el.getAttribute("data-val"))); });
+    PARTS.forEach(function (pt) {
+      var k = pt[0], v = p ? p[k] : null, known = !!v && (v === "auto" || SWATCHES[k].some(function (s) { return s[1] === v; }));
+      document.querySelector('[data-any="' + k + '"]').setAttribute("data-on", String(!!v && !known));
+      var input = document.querySelector('[data-color="' + k + '"]'), shown = v && v !== "auto" ? v : (p ? build(p)[{ text: "editor.foreground", lines: "editorGroup.border" }[k] || "editor.background"] : "#888888");
+      if (document.activeElement !== input) input.value = shown.slice(0, 7);
+    });
+    var fs = $("font"), want = p ? p.font : "default";
+    if (fonts.indexOf(want) < 0) { fonts.push(want); renderParts(); return syncParts(); }
+    fs.value = want; $("size").textContent = (p ? p.size : DEFAULT_SIZE) + "px";
+  }
+  function renderPreview() {
+    var f = folders[cur];
+    $("preview").innerHTML = f.picks ? win(f.picks, f.name) : '<div class="empty"><div><strong style="color:var(--fg)">No colours yet</strong><br>' + esc(f.name) + ' is using your normal VS Code theme.<br>Pick a look to start.</div></div>';
+    $("undo").disabled = !f.history.length;
+    $("clear").disabled = !f.picks || !live;
+    $("copy").disabled = !f.picks;
+  }
+  function refresh() { renderFolders(); renderLooks(); syncParts(); renderPreview(); }
+  function status(text, kind) { var el = $("status"); el.className = "status " + (kind || ""); el.querySelector("span").textContent = text; }
+
+  // ---- Changes and saving
+  var lastKey = "", lastAt = 0;
+  function change(partial, key) {
+    var f = folders[cur], now = Date.now();
+    if (!(key && key === lastKey && now - lastAt < 900)) { f.history.push(f.picks); if (f.history.length > 60) f.history.shift(); }
+    lastKey = key || ""; lastAt = now;
+    var base = f.picks || Object.assign({ font: "default", size: DEFAULT_SIZE }, LOOKS[0]);
+    f.picks = { border: base.border, bg: base.bg, text: base.text, lines: base.lines || "auto", hl: base.hl, font: base.font, size: base.size };
+    Object.keys(partial).forEach(function (k) { f.picks[k] = partial[k]; });
+    f.picks.look = lookOf(f.picks);
+    refresh(); queueSave(f);
+  }
+  function queueSave(f) {
+    if (!live) { status("Preview only. Nothing is saved from this page.", ""); return; }
+    status("Saving...", ""); clearTimeout(f.timer); f.timer = setTimeout(function () { save(f); }, 220);
+  }
+  function save(f) {
+    fetch("api/save", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: f.path, picks: f.picks, colours: f.picks ? build(f.picks) : null }) })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Could not save"); }); })
+      .then(function () { status(f.picks ? "Saved. The " + f.name + " window has updated." : "Colours removed from " + f.name + ".", "ok"); })
+      .catch(function (e) { status("Not saved. " + (e.message === "Failed to fetch" ? "The colours tool has stopped, run it again." : e.message), "err"); });
+  }
+
+  document.addEventListener("click", function (e) {
+    var t;
+    if ((t = e.target.closest("[data-folder]"))) { cur = +t.getAttribute("data-folder"); refresh(); return; }
+    if ((t = e.target.closest("[data-look]"))) { var L = LOOKS[+t.getAttribute("data-look")]; change({ border: L.border, bg: L.bg, text: L.text, lines: "auto", hl: L.hl }); return; }
+    if ((t = e.target.closest("[data-part]"))) { var o = {}; o[t.getAttribute("data-part")] = t.getAttribute("data-val"); change(o); return; }
+    if ((t = e.target.closest("[data-step]"))) { var p = folders[cur].picks, s = (p ? p.size : DEFAULT_SIZE) + (+t.getAttribute("data-step")); if (s >= 10 && s <= 22) change({ size: s }); return; }
+    if (e.target.id === "undo") { var f = folders[cur]; if (f.history.length) { f.picks = f.history.pop(); lastKey = ""; refresh(); queueSave(f); } return; }
+    if (e.target.id === "clear") { var g = folders[cur]; if (g.picks) { g.history.push(g.picks); g.picks = null; refresh(); queueSave(g); } return; }
+    if (e.target.id === "copy") {
+      var text = JSON.stringify(settingsFor(folders[cur].picks), null, 2), btn = e.target;
+      var done = function (ok) { status(ok ? "Copied. Paste it into .vscode/settings.json in your folder." : "Copy was blocked by the browser.", ok ? "ok" : "err"); btn.textContent = ok ? "Copied" : "Copy settings"; setTimeout(function () { btn.textContent = "Copy settings"; }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); else done(false);
+    }
+  });
+  document.addEventListener("input", function (e) {
+    var k = e.target.getAttribute && e.target.getAttribute("data-color");
+    if (k) { var o = {}; o[k] = e.target.value.toLowerCase(); change(o, "color-" + k); }
+  });
+  document.addEventListener("change", function (e) { if (e.target.id === "font") change({ font: e.target.value }); });
+
+  // ---- Start: talk to colours.py if it is running, otherwise preview only.
+  function start(list) {
+    folders = list.map(function (f) { if (f.picks && !f.picks.lines) f.picks.lines = "auto"; return { name: f.name, path: f.path, picks: f.picks, history: [], timer: null }; });
+    FONT_CANDIDATES.forEach(function (f) { if (hasFont(f)) fonts.push(f); });
+    $("copy").hidden = live;
+    if (!live) { $("sub").textContent = "Click a look to preview it. To save straight into VS Code, run colours.py. Or copy the settings into your folder's .vscode/settings.json."; $("note").textContent = "Preview only. Nothing on this page changes your computer."; }
+    else { $("note").textContent = "Saves into each folder's .vscode/settings.json. Your other settings are kept."; status("Ready. Pick a look.", ""); }
+    renderParts(); refresh();
+  }
+  fetch("api/folders", { cache: "no-store" })
+    .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    .then(function (d) { live = true; start(d.folders); })
+    .catch(function () { live = false; start([{ name: "Your folder", path: null, picks: null }]); });
+})();
+</script>
